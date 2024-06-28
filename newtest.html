@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input[type="text"] {
+            padding: 8px;
+            width: 100%;
+            max-width: 300px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #timer {
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <form id="timerForm">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+            <br><br>
+            <label for="timer">Timer:</label>
+            <span id="timer">00:00:00</span>
+            <br><br>
+            <button type="button" id="startButton">Start</button>
+            <button type="button" id="stopButton">Stop</button>
+            <button type="button" id="resetButton">Reset</button>
+        </form>
+    </div>
+
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script>
+        let timerInterval;
+        let seconds = 0;
+        let minutes = 0;
+        let hours = 0;
+        let startTime;
+        let endTime;
+
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const resetButton = document.getElementById('resetButton');
+        const timerDisplay = document.getElementById('timer');
+        const nameInput = document.getElementById('name');
+
+        startButton.addEventListener('click', startTimer);
+        stopButton.addEventListener('click', stopTimer);
+        resetButton.addEventListener('click', resetTimer);
+
+        function startTimer() {
+            if (nameInput.value.trim() === '') {
+                alert('Name is required');
+                return;
+            }
+            startTime = new Date();
+            timerInterval = setInterval(updateTimer, 1000);
+            startButton.disabled = true;
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            endTime = new Date();
+            saveToGoogleSheet();
+            startButton.disabled = false;
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            seconds = 0;
+            minutes = 0;
+            hours = 0;
+            timerDisplay.textContent = '00:00:00';
+            startButton.disabled = false;
+        }
+
+        function updateTimer() {
+            seconds++;
+            if (seconds === 60) {
+                seconds = 0;
+                minutes++;
+                if (minutes === 60) {
+                    minutes = 0;
+                    hours++;
+                }
+            }
+            timerDisplay.textContent = formatTime(hours) + ':' + formatTime(minutes) + ':' + formatTime(seconds);
+        }
+
+        function formatTime(time) {
+            return (time < 10 ? '0' + time : time);
+        }
+
+        function saveToGoogleSheet() {
+            gapi.client.sheets.spreadsheets.values.append({
+                spreadsheetId: 'YOUR_SPREADSHEET_ID',
+                range: 'Sheet1!A:B', // Adjust the sheet name and range as needed
+                valueInputOption: 'RAW',
+                resource: {
+                    values: [
+                        [nameInput.value, calculateElapsedTime()]
+                    ]
+                }
+            }).then((response) => {
+                console.log('Data appended successfully!', response);
+            }, (err) => {
+                console.error('Error appending data:', err);
+            });
+        }
+
+        function calculateElapsedTime() {
+            const elapsedMilliseconds = endTime - startTime;
+            const elapsedSeconds = Math.floor(elapsedMilliseconds / 1000);
+            const hh = Math.floor(elapsedSeconds / 3600);
+            const mm = Math.floor((elapsedSeconds % 3600) / 60);
+            const ss = elapsedSeconds % 60;
+            return `${formatTime(hh)}:${formatTime(mm)}:${formatTime(ss)}`;
+        }
+
+        // Load Google Sheets API
+        gapi.load('client', initGoogleSheetsAPI);
+
+        function initGoogleSheetsAPI() {
+            gapi.client.init({
+                apiKey: 'YOUR_API_KEY',
+                clientId: 'YOUR_CLIENT_ID',
+                discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+                scope: 'https://www.googleapis.com/auth/spreadsheets'
+            }).then(function () {
+                console.log('Google Sheets API initialized');
+            }, function (error) {
+                console.error('Error initializing Google Sheets API', error);
+            });
+        }
+    </script>
+</body>
+</html>
